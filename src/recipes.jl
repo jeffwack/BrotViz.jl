@@ -1,5 +1,4 @@
 # Makie Recipes for Mandelbrot Package Visualizations
-# This file implements user-friendly recipe-based plotting functions
 # Works with any Makie backend: GLMakie, CairoMakie, WGLMakie
 
 # ============================================================================
@@ -23,7 +22,7 @@ Recipe for plotting Hubbard trees associated with hyperbolic components.
 
 ## Examples
 ```julia
-using Mandelbrot, GLMakie  # or CairoMakie, WGLMakie
+using BrotViz, CairoMakie
 hubbardtreeplot(1//3)  # Embedded in Julia set
 hubbardtreeplot(1//7, style=:dendrogram)  # As dendrogram
 hubbardtreeplot(3//5, limits=(-1.5, 1.5, -1.0, 1.0))  # Custom limits
@@ -44,7 +43,7 @@ end
 
 function Makie.plot!(plot::HubbardTreePlot)
     angle = plot[1][]
-    
+
     if plot[:style][] == :embedded
         plot_embedded_tree!(plot, angle)
     elseif plot[:style][] == :dendrogram
@@ -52,7 +51,7 @@ function Makie.plot!(plot::HubbardTreePlot)
     else
         error("Unknown style: $(plot[:style][]). Use :embedded or :dendrogram")
     end
-    
+
     return plot
 end
 
@@ -61,34 +60,34 @@ function plot_embedded_tree!(plot, angle::Rational)
     htree = HC.htree
     (EdgeList, Nodes) = Mandelbrot.adjlist(htree.adj)
     criticalorbit = orbit(htree.criticalpoint)
-    
+
     # Prepare node colors and labels
     nodecolors = get_node_colors(HC, Nodes, plot[:node_colormap][])
     labels = get_node_labels(Nodes, criticalorbit)
-    
+
     # Plot Julia set background if requested
     if plot[:show_critical_orbit][]
-        julia = Mandelbrot.inverseiterate(HC.parameter, plot[:julia_resolution][])
+        julia = inverseiterate(HC.parameter, plot[:julia_resolution][])
         scatter!(plot, real(julia), imag(julia), markersize=1, color=:black)
     end
-    
+
     # Plot tree edges
     plot_tree_edges!(plot, EdgeList, Nodes, HC, nodecolors)
-    
+
     # Plot external rays if requested
     if plot[:show_rays][]
         plot_external_rays!(plot, HC, plot[:ray_colormap][])
     end
-    
+
     # Plot tree nodes
     zvalues = [HC.vertices[node] for node in Nodes]
     pos = Point.(real.(zvalues), imag.(zvalues))
     scatter!(plot, pos, color=nodecolors, markersize=plot[:node_size][])
-    
+
     # Add node labels
     tex = [label[2] for label in labels]
     text!(plot, pos, text=tex)
-    
+
     # Set axis limits
     lims = plot[:limits][]
     limits!(lims[1], lims[2], lims[3], lims[4])
@@ -98,10 +97,10 @@ function plot_dendrogram_tree!(plot, angle::Rational)
     H = HubbardTree(KneadingSequence(angle))
     (E, nodes) = Mandelbrot.adjlist(H.adj)
     root = H.criticalpoint
-    
+
     criticalorbit = orbit(root)
     labels = []
-    
+
     for node in nodes
         idx = findall(x->x==node, criticalorbit.items)
         if isempty(idx)
@@ -110,20 +109,20 @@ function plot_dendrogram_tree!(plot, angle::Rational)
             push!(labels, Pair(node, string(idx[1] - criticalorbit.preperiod - 1)))
         end
     end
-    
+
     rootindex = findall(x->x==root, nodes)[1]
     pos = generationposition(E, rootindex)
-    
+
     # Plot tree edges
     for (ii, p) in enumerate(E)
         for n in p
             lines!(plot, [pos[ii], pos[n]], linewidth=1)
         end
     end
-    
+
     # Plot nodes
     scatter!(plot, pos, markersize=plot[:node_size][])
-    
+
     # Add labels
     tex = [label[2] for label in labels]
     text!(plot, pos, text=tex)
@@ -172,12 +171,12 @@ end
 
 function plot_tree_edges!(plot, EdgeList, Nodes, HC, nodecolors)
     colorsforinterior = ["red", "blue", "green", "orange"]
-    
+
     for (ii, p) in enumerate(EdgeList)
         for n in p
             cmplxedge = HC.edges[Set([Nodes[ii], Nodes[n]])][2]
             realedge = Point.(real.(cmplxedge), imag.(cmplxedge))
-            
+
             # Determine edge color
             col = "black"  # default
             if nodecolors[ii] in colorsforinterior
@@ -189,7 +188,7 @@ function plot_tree_edges!(plot, EdgeList, Nodes, HC, nodecolors)
             elseif nodecolors[n] !== "black"
                 col = nodecolors[n]
             end
-            
+
             lines!(plot, realedge, color=col, linewidth=1, transparency=true, overdraw=true)
         end
     end
@@ -199,7 +198,7 @@ function plot_external_rays!(plot, HC, colormap)
     rays = collect(values(HC.rays))
     n = length(rays)
     for (j, ray) in enumerate(rays)
-        lines!(plot, real(ray), imag(ray), 
+        lines!(plot, real(ray), imag(ray),
                color=get(ColorSchemes.rainbow, float(j)/float(n)))
     end
 end
@@ -224,9 +223,9 @@ Recipe for plotting the Mandelbrot set.
 
 ## Examples
 ```julia
-using Mandelbrot, GLMakie  # or CairoMakie, WGLMakie
-mandelbrotset(0+0im, 2.0)  # Standard view
-mandelbrotset(-0.5+0.5im, 0.1, max_iterations=500)  # Zoomed detail
+using BrotViz, CairoMakie
+mandelbrotsetplot(0+0im, 2.0)  # Standard view
+mandelbrotsetplot(-0.5+0.5im, 0.1, max_iterations=500)  # Zoomed detail
 ```
 """
 @recipe(MandelbrotSetPlot, center, zoom) do scene
@@ -244,23 +243,23 @@ end
 function Makie.plot!(plot::MandelbrotSetPlot)
     center = plot[1][]
     zoom = plot[2][]
-    
+
     # Create coordinate patch
     patch = create_mandelbrot_patch(
-        center, 
-        zoom, 
+        center,
+        zoom,
         plot[:resolution][]
     )
-    
+
     # Compute escape times
-    problem_array = Mandelbrot.mproblem_array(
-        patch, 
-        Mandelbrot.escape(plot[:escape_radius][]), 
+    problem_array = mproblem_array(
+        patch,
+        escape(plot[:escape_radius][]),
         plot[:max_iterations][]
     )
-    
-    escape_data = Mandelbrot.escapetime.(problem_array)
-    
+
+    escape_data = escapetime.(problem_array)
+
     # Apply coloring based on mode
     if plot[:color_mode][] == :escape_time
         pic = [x[1] for x in escape_data]
@@ -271,33 +270,33 @@ function Makie.plot!(plot::MandelbrotSetPlot)
     else
         error("Unknown color_mode: $(plot[:color_mode][])")
     end
-    
+
     # Create the heatmap
-    heatmap!(plot, pic, 
-             colormap = plot[:colormap][], 
+    heatmap!(plot, pic,
+             colormap = plot[:colormap][],
              nan_color = plot[:interior_color][])
-    
+
     return plot
 end
 
 function create_mandelbrot_patch(center::Complex, zoom::Real, resolution::Tuple{Int,Int})
     width, height = resolution
-    
+
     # Calculate bounds
     aspect_ratio = height / width
     half_width = zoom / 2
     half_height = half_width * aspect_ratio
-    
+
     # Create coordinate grid
     x_range = LinRange(real(center) - half_width, real(center) + half_width, width)
     y_range = LinRange(imag(center) - half_height, imag(center) + half_height, height)
-    
+
     # Create complex coordinate matrix
     return [x + y*im for y in reverse(y_range), x in x_range]
 end
 
 # ============================================================================
-# JuliaSetPlot Recipe  
+# JuliaSetPlot Recipe
 # ============================================================================
 
 """
@@ -315,9 +314,9 @@ Recipe for plotting Julia sets.
 
 ## Examples
 ```julia
-using Mandelbrot, GLMakie  # or CairoMakie, WGLMakie
-juliaset(-0.3+0.0im, 2.0)  # Julia set for c = -0.3
-juliaset(-0.7269+0.1889im, 1.5, binary_decomposition=true)  # Binary coloring
+using BrotViz, CairoMakie
+juliasetplot(-0.3+0.0im, 2.0)  # Julia set for c = -0.3
+juliasetplot(-0.7269+0.1889im, 1.5, binary_decomposition=true)  # Binary coloring
 ```
 """
 @recipe(JuliaSetPlot, parameter, bounds) do scene
@@ -334,57 +333,45 @@ end
 function Makie.plot!(plot::JuliaSetPlot)
     parameter = plot[1][]
     bounds = plot[2][]
-    
+
     # Create Julia set patch
-    patch = Mandelbrot.julia_patch(0.0+0.0im, bounds+0.0im)
-    
+    patch = julia_patch(0.0+0.0im, bounds+0.0im)
+
     # Define the function
     f(z) = z*z + parameter
-    
+
     if plot[:binary_decomposition][]
         # Binary decomposition version
         epsilon = 1.0 / plot[:escape_threshold][]
-        problem_array = Mandelbrot.jproblem_array(patch, f, Mandelbrot.escape(1/epsilon), plot[:max_iterations][])
-        escape_data = Mandelbrot.escapetime.(problem_array)
+        problem_array = jproblem_array(patch, f, escape(1/epsilon), plot[:max_iterations][])
+        escape_data = escapetime.(problem_array)
         pic = assignbinary.(escape_data)
     else
         # Standard escape-time version
-        problem_array = Mandelbrot.jproblem_array(patch, f, Mandelbrot.escapeorconverge(plot[:escape_threshold][]), plot[:max_iterations][])
-        escape_data = Mandelbrot.escapetime.(problem_array)
+        problem_array = jproblem_array(patch, f, escapeorconverge(plot[:escape_threshold][]), plot[:max_iterations][])
+        escape_data = escapetime.(problem_array)
         pic = [x[1] for x in escape_data]
     end
-    
+
     # Create the heatmap
-    heatmap!(plot, pic, 
-             colormap = plot[:colormap][], 
+    heatmap!(plot, pic,
+             colormap = plot[:colormap][],
              nan_color = plot[:interior_color][])
-    
+
     return plot
 end
 
-# Note: assignbinary function is already defined in juliaset.jl
-
 # ============================================================================
-# Convenience functions that call the recipes
-# ============================================================================
-
-# The @recipe macro automatically creates both hubbardtree and hubbardtree! functions
-# Same for mandelbrotset/mandelbrotset! and juliaset/juliaset!
-# No need to define them manually
-
-# ============================================================================
-# Additional convenience methods
+# Convenience functions
 # ============================================================================
 
 """
     juliasetplot(angle::Rational, bounds::Real; kwargs...)
 
 Plot the Julia set for the parameter corresponding to the given external angle.
+Uses the spider algorithm to find the parameter.
 """
 function juliasetplot(angle::Rational, bounds::Real; kwargs...)
-    parameter = Mandelbrot.parameter(angle, 500)  # Use spider algorithm to find parameter
-    juliasetplot(parameter, bounds; kwargs...)
+    param = parameter(angle, 500)
+    juliasetplot(param, bounds; kwargs...)
 end
-
-# Note: mandelbrotsetplot() convenience method removed to avoid method overwriting
-# Use: mandelbrotsetplot(0.0+0.0im, 4.0) for standard view

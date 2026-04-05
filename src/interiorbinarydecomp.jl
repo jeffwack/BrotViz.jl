@@ -32,15 +32,11 @@ function arrive(destination::Number,radius::Real)
 end
 
 
-
-
 function alphamovie(frames::Int)
 
     #From page 40 of "The Beauty of Fractals"
     epsilon = 0.0001
-    #We will consider a point arrived at zero if its modulus is less than epsilon, and arrived at infinity if its modulus is greater than 1/epsilon
 
-    #first, set up a grid of test points.
     J = julia_patch(0.0+0.0im,2.0+0.0im)
 
     c = -0.3+0.0im
@@ -75,5 +71,5 @@ function alphamovie(frames::Int)
         empty!(ax)
         pic = assignbinary.(ET,star,ii/frames)
         heatmap!(scene,pic,colormap = :grayC, nan_color = RGBf(152/255, 109/255, 227/255))
-    end 
+    end
 end

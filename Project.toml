@@ -3,8 +3,18 @@ uuid = "b2afee0e-5ae9-4674-9c86-b31c1a479060"
 authors = ["Jeffrey Wack <jeffwack111@gmail.com> and contributors"]
 version = "1.0.0-DEV"
 
+[deps]
+ColorSchemes = "35d6a980-a343-548e-a6ea-1d62b119f2f4"
+Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+Mandelbrot = "52854307-bbd1-4ac7-933f-adc0936abe8a"
+
 [compat]
-julia = "1.12"
+ColorSchemes = "3"
+Colors = "0.12, 0.13"
+Makie = "0.22, 0.24"
+Mandelbrot = "0.4"
+julia = "1.11, 1.12"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

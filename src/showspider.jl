@@ -10,7 +10,6 @@ function Makie.plot!(myplot::SpiderPlot)
     end
     r = 6
     limits!(-r-1,r-1,-r,r)
-    #why can we use the above function but cannot do other things like hidespines?
     return myplot
 end
 
@@ -26,12 +25,10 @@ function showspider(angle::Rational,frames::Int)
 
     num = angle.num
     den = angle.den
-    
+
     record(fig,"$num.$den.gif",1:frames; framerate = 3) do i
         empty!(ax)
         spiderplot!(ax,list[i])
-    end 
-        
-end 
+    end
 
-
+end

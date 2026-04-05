@@ -3,7 +3,7 @@ function assignbinary((iter,z))
         return NaN
     else
         turns = angle(z)/(2*pi) + 0.5
-        if  turns >= 0.5 
+        if  turns >= 0.5
             return 1
         else
             return 0
@@ -30,7 +30,7 @@ function juliaframe!(scene,param,colors)
 end
 
 function juliaframe(param)
-    scene = Scene(size= (500,500))#,camera = campixel!)
+    scene = Scene(size= (500,500))
     return juliaframe!(scene,param)
 end
 

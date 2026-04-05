@@ -41,28 +41,28 @@ function treeplot(HC::HyperbolicComponent)
 
     zvalues = [HC.vertices[node] for node in Nodes]
 
-    pos = Point.(real.(zvalues),imag.(zvalues)) 
+    pos = Point.(real.(zvalues),imag.(zvalues))
 
     colorsforinterior = ["red","blue","green","orange"]
 
     for (ii,p) in enumerate(EdgeList)
         for n in p
             cmplxedge = HC.edges[Set([Nodes[ii],Nodes[n]])][2]
-            realedge = Point.(real.(cmplxedge),imag.(cmplxedge)) 
-            if nodecolors[ii] in colorsforinterior 
+            realedge = Point.(real.(cmplxedge),imag.(cmplxedge))
+            if nodecolors[ii] in colorsforinterior
                 col = nodecolors[ii]
             elseif nodecolors[n] in colorsforinterior
                 col = nodecolors[n]
-            elseif nodecolors[ii] !== "black" 
+            elseif nodecolors[ii] !== "black"
                 col = nodecolors[ii]
-            elseif nodecolors[n] !== "black" 
+            elseif nodecolors[n] !== "black"
                 col = nodecolors[n]
             end
             lines!(ax,realedge,color = col,linewidth = 1,transparency = true,overdraw = true)
         end
     end
 
-    julia = Mandelbrot.inverseiterate(HC.parameter,20)
+    julia = inverseiterate(HC.parameter,20)
     scatter!(ax,real(julia),imag(julia),markersize = 1,color = "black")
 
 
@@ -87,11 +87,11 @@ function plottree!(scene, H::HubbardTree)
 
     (E, nodes) = Mandelbrot.adjlist(H.adj)
     root = H.criticalpoint
-    
+
     criticalorbit = orbit(root)
-    
+
     labels = []
-   
+
     for node in nodes
         idx = findall(x->x==node, criticalorbit.items)
         if isempty(idx)
@@ -120,7 +120,7 @@ end
 
 function generationposition(E,root)
     T = [[root],E[root]]
-    
+
     nadded = 1 + length(T[2])
     n = length(E)
 
@@ -141,9 +141,9 @@ function generationposition(E,root)
     end
     Ngens = length(T)
 
-    X = zeros(Float64,n) 
+    X = zeros(Float64,n)
     Y = zeros(Float64,n)
-    
+
     for (gen,vertices) in enumerate(T)
         k = length(vertices)
         for (ii,u) in enumerate(vertices)
@@ -171,11 +171,11 @@ end
 
 function embedanim(AIA::AngledInternalAddress,frames)
     OHT = OrientedHubbardTree(AIA)
-    (E,c) = standardedges(OHT)
+    (E,c) = Mandelbrot.standardedges(OHT)
 
     edgelist = [E]
     for ii in 1:frames
-        E = refinetree(OHT,c,E)
+        E = Mandelbrot.refinetree(OHT,c,E)
         push!(edgelist,E)
     end
 
@@ -192,7 +192,7 @@ function embedanim(angle::Rational,frames)
 end
 
 function showtree!(scene,angle::Rational)
-    E = refinedtree(angle,8)
+    E = Mandelbrot.refinedtree(angle,8)
     return plotedges!(scene,E)
 end
 

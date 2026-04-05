@@ -1,4 +1,4 @@
-@recipe(RayPlot,ExtRays) do scene 
+@recipe(RayPlot,ExtRays) do scene
     Theme()
 end
 
