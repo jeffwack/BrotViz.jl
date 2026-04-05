@@ -1,12 +1,22 @@
 # TODO: Comprehensive Hubbard Tree Testing Suite
 
-**Priority**: High  
-**Location**: `src/HubbardTrees.jl:32` - Triod-based tree building algorithm  
-**Current Status**: Algorithm implemented but lacks comprehensive testing
+**Target package**: `Mandelbrot.jl`. All tests described here live in
+`Mandelbrot.jl/test/`, not in BrotViz or BrotRover. Visual/plot-based
+validation, if ever added, belongs in BrotViz's test suite — see
+`ROADMAP_brotviz.md`.
+**Priority**: High.
+**Location**: `Mandelbrot.jl/src/HubbardTrees.jl` — triod-based tree
+building algorithm.
+**Current Status**: Algorithm implemented but `test/runtests.jl` still
+contains only a single `@test` line. No systematic validation exists.
 
 ## Problem Statement
 
-The Hubbard tree construction algorithm is mathematically sophisticated (based on Bruin, Kafll, Schleicher paper) but currently lacks comprehensive tests. This is critical infrastructure that needs thorough validation.
+The Hubbard tree construction algorithm is mathematically sophisticated
+(based on Bruin, Kaffl, Schleicher) but currently lacks comprehensive
+tests. This is critical infrastructure that needs thorough validation,
+especially as the `AbortToken` work in `ROADMAP.md` §A.2 will touch
+`iteratetriod`'s inner loop and we want a safety net before changing it.
 
 ## Goal
 
@@ -194,20 +204,15 @@ function is_acyclic(H::HubbardTree)
 end
 ```
 
-### Visual Validation
-```julia
-@testset "Visual Validation" begin
-    # Generate plots for manual inspection
-    for (name, K) in named_test_cases()
-        H = HubbardTree(K)
-        # Save tree plot for manual verification
-        # (Don't include in CI, but useful for development)
-        if get(ENV, "GENERATE_TEST_PLOTS", "false") == "true"
-            save_tree_plot(H, "test_tree_$name.png")
-        end
-    end
-end
-```
+### Visual validation — belongs in BrotViz, not here
+
+Mandelbrot.jl has no rendering dependencies and will not gain any. Any
+plot-based "generate a PNG for manual inspection" validation belongs in
+`BrotViz/test/` where `treeplot`, `hubbardtreeplot`, and friends already
+live. Tracked in `ROADMAP_brotviz.md` under the "Tests" section
+(`ReferenceTests.jl` for the plot recipes). The BrotViz-side test would
+import Mandelbrot.jl's reference `HubbardTree` cases (once this TODO's
+test helpers exist) and run them through the Makie recipes.
 
 ## Implementation Plan
 
@@ -247,9 +252,12 @@ end
 
 ## Related Issues
 
-- Depends on Sequence framework tests
-- Impacts visualization testing
+- Depends on Sequence framework tests (see `TODO_sequence_type_stability.md`)
 - Required for spider algorithm validation
+- Safety net for the `AbortToken` work in `ROADMAP.md` §A.2, which will
+  touch the `iteratetriod` inner loop
+- BrotViz's plot-recipe visual tests will consume the reference cases
+  built here — see `ROADMAP_brotviz.md`
 
 ## References
 
