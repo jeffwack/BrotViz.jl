@@ -5,6 +5,7 @@ using Makie
 using ColorSchemes, Colors
 
 include("renderfractal.jl")
+include("treecolors.jl")
 include("showtree.jl")
 include("showspider.jl")
 include("showrays.jl")
@@ -13,11 +14,16 @@ include("juliaset.jl")
 include("interiorbinarydecomp.jl")
 include("recipes.jl")
 
-export hubbardtreeplot, hubbardtreeplot!,
+export embeddedtreeplot, embeddedtreeplot!,
+       EmbeddedTreePlot,
+       generationtreeplot, generationtreeplot!,
+       GenerationTreePlot,
        mandelbrotsetplot, mandelbrotsetplot!,
+       MandelbrotSetPlot,
        juliasetplot, juliasetplot!,
-       HubbardTreePlot, MandelbrotSetPlot, JuliaSetPlot,
-       spiderplot, treeplot, showspider,
-       plotrays
+       JuliaSetPlot,
+       spiderplot, showspider,
+       plotrays,
+       kneadingtable
 
 end
