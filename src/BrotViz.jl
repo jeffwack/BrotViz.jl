@@ -15,15 +15,12 @@ include("interiorbinarydecomp.jl")
 include("recipes.jl")
 
 export embeddedtreeplot, embeddedtreeplot!,
-       EmbeddedTreePlot,
        generationtreeplot, generationtreeplot!,
-       GenerationTreePlot,
        mandelbrotsetplot, mandelbrotsetplot!,
-       MandelbrotSetPlot,
        juliasetplot, juliasetplot!,
-       JuliaSetPlot,
-       spiderplot, showspider,
-       plotrays,
+       spiderplot!, showspider,
+       plotrays, plotrays!,
+       dynamicraysplot, dynamicraysplot!,
        kneadingtable
 
 end

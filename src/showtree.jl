@@ -71,28 +71,18 @@ end
 # Embedded Tree Plot (Rational only — requires HyperbolicComponent)
 # ============================================================================
 
-@recipe(EmbeddedTreePlot, angle) do scene
-    Attributes(
-        show_rays = true,
-        show_julia = true,
-        node_size = 10,
-        ray_colormap = :rainbow,
-        julia_resolution = 20,
-        colorscheme = DEFAULT_TREE_COLORSCHEME,
-        show_labels = true
-    )
-end
+function embeddedtreeplot!(ax, angle::Rational;
+        show_rays=true, show_julia=true, node_size=10,
+        ray_colormap=:rainbow, julia_resolution=20,
+        colorscheme=DEFAULT_TREE_COLORSCHEME, show_labels=true)
 
-function Makie.plot!(plot::EmbeddedTreePlot)
-    angle = plot[1][]
-    colorscheme = plot[:colorscheme][]
     HC, htree, EdgeList, Nodes, nodecolors, edgecolorfn = _colored_tree_data(angle; colorscheme)
     criticalorbit = orbit(htree.criticalpoint)
 
     # Julia set background
-    if plot[:show_julia][]
-        julia = inverseiterate(HC.parameter, plot[:julia_resolution][])
-        scatter!(plot, real(julia), imag(julia), markersize=1, color=:black)
+    if show_julia
+        julia = inverseiterate(HC.parameter, julia_resolution)
+        scatter!(ax, real(julia), imag(julia), markersize=1, color=:black)
     end
 
     # Edges
@@ -101,55 +91,39 @@ function Makie.plot!(plot::EmbeddedTreePlot)
             cmplxedge = HC.edges[Set([Nodes[ii], Nodes[n]])][2]
             realedge = Point.(real.(cmplxedge), imag.(cmplxedge))
             col = edgecolorfn(ii, n)
-            lines!(plot, realedge, color=col, linewidth=1, transparency=true, overdraw=true)
+            lines!(ax, realedge, color=col, linewidth=1, transparency=true, overdraw=true)
         end
     end
 
     # External rays
-    if plot[:show_rays][]
+    if show_rays
         rays = collect(values(HC.rays))
         nrays = length(rays)
         for (j, ray) in enumerate(rays)
-            lines!(plot, real(ray), imag(ray), color=get(ColorSchemes.rainbow, float(j)/float(nrays)))
+            lines!(ax, real(ray), imag(ray), color=get(ColorSchemes.rainbow, float(j)/float(nrays)))
         end
     end
 
     # Nodes
     zvalues = [HC.vertices[node] for node in Nodes]
     pos = Point.(real.(zvalues), imag.(zvalues))
-    scatter!(plot, pos, color=nodecolors, markersize=plot[:node_size][])
+    scatter!(ax, pos, color=nodecolors, markersize=node_size)
 
     # Labels
-    if plot[:show_labels][]
+    if show_labels
         labels = _tree_node_labels(Nodes, criticalorbit)
-        text!(plot, pos, text=labels)
+        text!(ax, pos, text=labels)
     end
 
-    return plot
+    return ax
 end
 
 # ============================================================================
 # Generation Tree Plot (HubbardTree or Rational)
 # ============================================================================
 
-@recipe(GenerationTreePlot) do scene
-    Attributes(
-        node_size = 10,
-        colorscheme = DEFAULT_TREE_COLORSCHEME,
-        show_labels = true
-    )
-end
-
-function Makie.plot!(plot::GenerationTreePlot)
-    input = plot[1][]
-
-    if input isa Rational
-        _, htree, E, nodes, nodecolors, edgecolorfn = _colored_tree_data(input; colorscheme=plot[:colorscheme][])
-        H = htree
-    else
-        H = input
-        E, nodes, nodecolors, edgecolorfn = _tree_data(H)
-    end
+function generationtreeplot!(ax, H::HubbardTree; show_labels=true, node_size=10)
+    E, nodes, nodecolors, edgecolorfn = _tree_data(H)
 
     root = H.criticalpoint
     rootindex = findall(x->x==root, nodes)[1]
@@ -159,21 +133,49 @@ function Makie.plot!(plot::GenerationTreePlot)
     for (ii, p) in enumerate(E)
         for n in p
             col = edgecolorfn === nothing ? "black" : edgecolorfn(ii, n)
-            lines!(plot, [pos[ii], pos[n]], linewidth=1, color=col)
+            lines!(ax, [pos[ii], pos[n]], linewidth=1, color=col)
         end
     end
 
     # Nodes
-    scatter!(plot, pos, color=nodecolors, markersize=plot[:node_size][])
+    scatter!(ax, pos, color=nodecolors, markersize=node_size)
 
     # Labels
-    if plot[:show_labels][]
+    if show_labels
         criticalorbit = orbit(root)
         labels = _tree_node_labels(nodes, criticalorbit)
-        text!(plot, pos, text=labels)
+        text!(ax, pos, text=labels)
     end
 
-    return plot
+    return ax
+end
+
+function generationtreeplot!(ax, angle::Rational; colorscheme=DEFAULT_TREE_COLORSCHEME, show_labels=true, node_size=10)
+    _, htree, E, nodes, nodecolors, edgecolorfn = _colored_tree_data(angle; colorscheme)
+
+    root = htree.criticalpoint
+    rootindex = findall(x->x==root, nodes)[1]
+    pos = generationposition(E, rootindex)
+
+    # Edges
+    for (ii, p) in enumerate(E)
+        for n in p
+            col = edgecolorfn(ii, n)
+            lines!(ax, [pos[ii], pos[n]], linewidth=1, color=col)
+        end
+    end
+
+    # Nodes
+    scatter!(ax, pos, color=nodecolors, markersize=node_size)
+
+    # Labels
+    if show_labels
+        criticalorbit = orbit(root)
+        labels = _tree_node_labels(nodes, criticalorbit)
+        text!(ax, pos, text=labels)
+    end
+
+    return ax
 end
 
 
@@ -185,8 +187,15 @@ function embeddedtreeplot(angle::Rational; kwargs...)
     fig = Figure()
     ax = Axis(fig[1,1])
     embeddedtreeplot!(ax, angle; kwargs...)
-    limits!(-2, 2, -2, 2)
-    return fig
+    limits!(ax, -2, 2, -2, 2)
+    return fig, ax
+end
+
+function generationtreeplot(input; kwargs...)
+    fig = Figure()
+    ax = Axis(fig[1,1])
+    generationtreeplot!(ax, input; kwargs...)
+    return fig, ax
 end
 
 function kneadingtable(angles::Vector{<:Rational})
