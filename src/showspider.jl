@@ -9,7 +9,7 @@ function spiderplot!(ax, S)
     return ax
 end
 
-function showspider(angle::Rational, frames::Int)
+function showspider(angle::Rational, frames::Int; save_frames=false)
     S0 = Mandelbrot.standardspider(angle)
     list = Mandelbrot.spideriterates(S0, frames)
 
@@ -19,8 +19,16 @@ function showspider(angle::Rational, frames::Int)
     num = angle.num
     den = angle.den
 
-    record(fig, "$num.$den.gif", 1:frames; framerate=3) do i
-        empty!(ax)
-        spiderplot!(ax, list[i])
+    if save_frames
+        for i in 1:frames
+            empty!(ax)
+            spiderplot!(ax, list[i])
+            save("$(num).$(den)_$i.png", fig)
+        end
+    else
+        record(fig, "$num.$den.gif", 1:frames; framerate=1) do i
+            empty!(ax)
+            spiderplot!(ax, list[i])
+        end
     end
 end
