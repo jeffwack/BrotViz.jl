@@ -10,14 +10,14 @@ const DEFAULT_TREE_COLORSCHEME = Dict(
 
 function classify_node(node, HC)
     firstchar = node.items[1]
-    if firstchar == Mandelbrot.KneadingSymbol('*')
+    if firstchar == Mandelbrot.KneadingSymbol{3}("*")
         return :sn
-    elseif firstchar == Mandelbrot.KneadingSymbol('A')
+    elseif firstchar == Mandelbrot.KneadingSymbol{3}("A")
         oz = HC.onezero[node]
         oz == Mandelbrot.Digit{2}(0) && return :a0
         oz === nothing && return :an
         oz == Mandelbrot.Digit{2}(1) && return :a1
-    elseif firstchar == Mandelbrot.KneadingSymbol('B')
+    elseif firstchar == Mandelbrot.KneadingSymbol{3}("B")
         oz = HC.onezero[node]
         oz == Mandelbrot.Digit{2}(0) && return :b0
         oz === nothing && return :bn
