@@ -1,0 +1,8 @@
+[deps]
+Mandelbrot = "52854307-bbd1-4ac7-933f-adc0936abe8a"
+Tachikoma = "468859d6-42d8-48b7-8ad9-1d312e0e3b0a"
+
+[compat]
+Mandelbrot = "0.6"
+Tachikoma = "2"
+julia = "1.10"
