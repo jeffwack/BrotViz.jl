@@ -1,8 +1,10 @@
 [deps]
+BrotViz = "b2afee0e-5ae9-4674-9c86-b31c1a479060"
 Mandelbrot = "52854307-bbd1-4ac7-933f-adc0936abe8a"
 Tachikoma = "468859d6-42d8-48b7-8ad9-1d312e0e3b0a"
 
 [compat]
+BrotViz = "1"
 Mandelbrot = "0.6"
 Tachikoma = "2"
 julia = "1.10"

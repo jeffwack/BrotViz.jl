@@ -28,42 +28,10 @@ function _tree_data(H::HubbardTree)
     return E, nodes, "black", nothing
 end
 
-# Generation layout algorithm
-
-function generationposition(E, root)
-    T = [[root], E[root]]
-
-    nadded = 1 + length(T[2])
-    n = length(E)
-
-    while nadded < n
-        parents = T[end]
-        children = []
-        for parent in parents
-            s = Mandelbrot.findone(x-> x in T[end-1], E[parent])
-            for u in circshift(E[parent], -s)
-                if !(u in T[end-1])
-                    push!(children, u)
-                end
-            end
-        end
-        push!(T, children)
-        nadded += length(children)
-    end
-    Ngens = length(T)
-
-    X = zeros(Float64, n)
-    Y = zeros(Float64, n)
-
-    for (gen, vertices) in enumerate(T)
-        k = length(vertices)
-        for (ii, u) in enumerate(vertices)
-            X[u] = 2*ii/(k+1) - 1
-            Y[u] = 2*(1 - gen/(Ngens+1)) - 1
-        end
-    end
-
-    return Point.(X, Y)
+# Convert a TreeLayout (y-down screen convention) into Makie Points
+# (y-up world). Flips y so root appears at the top in Makie plots.
+function _layout_points(layout::TreeLayout{<:Real})
+    return [Point(Float64(p[1]), -Float64(p[2])) for p in layout.positions]
 end
 
 
@@ -122,60 +90,81 @@ end
 # Generation Tree Plot (HubbardTree or Rational)
 # ============================================================================
 
-function generationtreeplot!(ax, H::HubbardTree; show_labels=true, node_size=10)
-    E, nodes, nodecolors, edgecolorfn = _tree_data(H)
+# Generic, layout-driven tree renderer. Any TreeLayout (generations, RT,
+# future ASCII-via-promotion) plugs in here.
+function treeplot!(ax, H::HubbardTree, layout::TreeLayout{<:Real};
+                   show_labels=true, node_size=10)
+    E, nodes, _, _ = _tree_data(H)
+    pos = _layout_points(layout)
 
-    root = H.criticalpoint
-    rootindex = findall(x->x==root, nodes)[1]
-    pos = generationposition(E, rootindex)
-
-    # Edges
     for (ii, p) in enumerate(E)
         for n in p
-            col = edgecolorfn === nothing ? "black" : edgecolorfn(ii, n)
-            lines!(ax, [pos[ii], pos[n]], linewidth=1, color=col)
+            lines!(ax, [pos[ii], pos[n]], linewidth=1, color="black")
         end
     end
+    scatter!(ax, pos, color="black", markersize=node_size)
 
-    # Nodes
-    scatter!(ax, pos, color=nodecolors, markersize=node_size)
-
-    # Labels
     if show_labels
-        criticalorbit = orbit(root)
+        criticalorbit = orbit(H.criticalpoint)
         labels = _tree_node_labels(nodes, criticalorbit)
         text!(ax, pos, text=labels)
     end
-
     return ax
 end
 
-function generationtreeplot!(ax, angle::Rational; colorscheme=DEFAULT_TREE_COLORSCHEME, show_labels=true, node_size=10)
+# Colored variant: angles know their hyperbolic component, so we have
+# per-node color info.
+function treeplot!(ax, angle::Rational, layout::TreeLayout{<:Real};
+                   colorscheme=DEFAULT_TREE_COLORSCHEME,
+                   show_labels=true, node_size=10)
     _, htree, E, nodes, nodecolors, edgecolorfn = _colored_tree_data(angle; colorscheme)
+    pos = _layout_points(layout)
 
-    root = htree.criticalpoint
-    rootindex = findall(x->x==root, nodes)[1]
-    pos = generationposition(E, rootindex)
-
-    # Edges
     for (ii, p) in enumerate(E)
         for n in p
-            col = edgecolorfn(ii, n)
-            lines!(ax, [pos[ii], pos[n]], linewidth=1, color=col)
+            lines!(ax, [pos[ii], pos[n]], linewidth=1, color=edgecolorfn(ii, n))
         end
     end
-
-    # Nodes
     scatter!(ax, pos, color=nodecolors, markersize=node_size)
 
-    # Labels
     if show_labels
-        criticalorbit = orbit(root)
+        criticalorbit = orbit(htree.criticalpoint)
         labels = _tree_node_labels(nodes, criticalorbit)
         text!(ax, pos, text=labels)
     end
-
     return ax
+end
+
+# ── Backwards-compatible wrappers (default layout = generations) ────────────
+
+generationtreeplot!(ax, H::HubbardTree; kwargs...) =
+    treeplot!(ax, H, generation_layout(H); kwargs...)
+
+function generationtreeplot!(ax, angle::Rational; kwargs...)
+    htree = HyperbolicComponent(angle).htree
+    treeplot!(ax, angle, generation_layout(htree); kwargs...)
+end
+
+function treeplot(input; layout::Symbol=:generation, kwargs...)
+    fig = Figure()
+    ax = Axis(fig[1, 1])
+    treeplot!(ax, input; layout=layout, kwargs...)
+    return fig, ax
+end
+
+function treeplot!(ax, H::HubbardTree; layout::Symbol=:generation, kwargs...)
+    lo = layout == :generation ? generation_layout(H) :
+         layout == :rt         ? reingold_tilford_layout(H) :
+         throw(ArgumentError("unknown layout :$layout"))
+    treeplot!(ax, H, lo; kwargs...)
+end
+
+function treeplot!(ax, angle::Rational; layout::Symbol=:generation, kwargs...)
+    htree = HyperbolicComponent(angle).htree
+    lo = layout == :generation ? generation_layout(htree) :
+         layout == :rt         ? reingold_tilford_layout(htree) :
+         throw(ArgumentError("unknown layout :$layout"))
+    treeplot!(ax, angle, lo; kwargs...)
 end
 
 
