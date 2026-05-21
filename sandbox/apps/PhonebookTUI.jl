@@ -64,25 +64,55 @@ end
 # Tachikoma BlockCanvas. A future ASCII renderer will dispatch on
 # TreeLayout{<:Integer} and draw char-by-char with |, /, \ glyphs.
 
-# ── Node labels (lifted from BrotViz/src/showtree.jl _tree_node_labels) ──
+# ── Node labels by orbit ──────────────────────────────────────────────
+# Critical orbit gets bare integers (0 = critical, then forward iterates).
+# Non-critical periodic orbits are named by `characteristicset` (each orbit
+# has a unique "characteristic" representative). Sigils tag the orbits in
+# the order returned, and node indices within each orbit are 1-based.
 
-function tree_node_labels(nodes, criticalorbit)
+const SIGILS = collect("#%\$@!~&^?+")
+
+"""
+    compute_label_set(H::HubbardTree) -> (labels::Vector{String}, char_pts::Vector)
+
+`labels[i]` is the label for `Mandelbrot.adjlist(H.adj)[2][i]`. `char_pts`
+is the characteristic-point list (one representative per non-critical
+periodic orbit) in the order assigned to the sigils `SIGILS[1]`,
+`SIGILS[2]`, … .
+"""
+function compute_label_set(H::HubbardTree)
+    (_, nodes) = Mandelbrot.adjlist(H.adj)
+    crit_orbit = Mandelbrot.orbit(H.criticalpoint)
+    char_pts   = characteristicset(H)
+    char_orbits = [Mandelbrot.orbit(c).items for c in char_pts]
+
     labels = String[]
     for node in nodes
-        idx = findall(x -> x == node, criticalorbit.items)
-        if isempty(idx)
-            push!(labels, repr("text/plain", node))
-        else
-            push!(labels, string(idx[1] - criticalorbit.preperiod - 1))
+        ic = findfirst(==(node), crit_orbit.items)
+        if ic !== nothing
+            push!(labels, string(ic - crit_orbit.preperiod - 1))
+            continue
         end
+        matched = false
+        for (k, orb) in enumerate(char_orbits)
+            j = findfirst(==(node), orb)
+            j === nothing && continue
+            sigil = k <= length(SIGILS) ? SIGILS[k] : '?'
+            push!(labels, string(sigil) * string(j))
+            matched = true
+            break
+        end
+        matched || push!(labels, repr("text/plain", node))
     end
-    return labels
+    return labels, char_pts
 end
 
 # BlockCanvas renderer. Accepts any TreeLayout{<:Real} — scales the
-# layout's bbox into the area's dot-space and draws thick lines.
+# layout's bbox into the area's dot-space and draws thin lines. `labels`
+# is precomputed via `compute_label_set`.
 function draw_hubbard_tree!(buf::Buffer, area::Rect, H::HubbardTree,
-                            layout::TreeLayout{<:Real}, show_labels::Bool)
+                            layout::TreeLayout{<:Real},
+                            labels::Vector{String}, show_labels::Bool)
     (area.width < 2 || area.height < 2) && return
     n = length(layout.positions)
     n == 0 && return
@@ -109,10 +139,7 @@ function draw_hubbard_tree!(buf::Buffer, area::Rect, H::HubbardTree,
     render(bc, area, buf)
 
     # Labels first so nodes win on conflict
-    if show_labels
-        (_, nodes) = Mandelbrot.adjlist(H.adj)
-        criticalorbit = Mandelbrot.orbit(H.criticalpoint)
-        labels = tree_node_labels(nodes, criticalorbit)
+    if show_labels && length(labels) == n
         for i in 1:n
             cx = area.x + (dot_pos[i][1] - 1) ÷ 2
             cy = area.y + (dot_pos[i][2] - 1) ÷ 2
@@ -151,6 +178,8 @@ end
     tree_addr::Union{Nothing, AngledInternalAddress} = nothing
     layout::Union{Nothing, TreeLayout} = nothing
     layout_kind::Symbol = :rt        # :rt | :generation — toggle with 'g'
+    labels::Vector{String} = String[]
+    char_pts::Vector{Any} = Any[]    # characteristic representatives, sigils
     show_labels::Bool = false
     tq::TaskQueue = TaskQueue()
     quit::Bool = false
@@ -191,10 +220,13 @@ function request_tree!(m::PhonebookModel, aia::AngledInternalAddress)
     m.tree = nothing
     m.tree_addr = nothing
     m.layout = nothing
+    m.labels = String[]
+    m.char_pts = Any[]
     g = m.gen
     spawn_task!(m.tq, :tree) do
         t = HubbardTree(InternalAddress(aia.addr))
-        (g, aia, t)
+        labels, char_pts = compute_label_set(t)
+        (g, aia, t, labels, char_pts)
     end
 end
 
@@ -275,12 +307,14 @@ function Tachikoma.update!(m::PhonebookModel, e::TaskEvent)
             m.populator_done = true
         end
     elseif e.id == :tree
-        if e.value isa Tuple{Int, AngledInternalAddress, HubbardTree}
-            g, aia, t = e.value
+        if e.value isa Tuple && length(e.value) == 5
+            g, aia, t, labels, char_pts = e.value
             if g == m.gen
                 m.tree = t
                 m.tree_addr = aia
                 m.layout = compute_layout(t, m.layout_kind)
+                m.labels = labels
+                m.char_pts = collect(char_pts)
             end
         end
     end
@@ -348,8 +382,13 @@ end
 function Tachikoma.view(m::PhonebookModel, f::Frame)
     m.tick += 1
     buf = f.buffer
+    # Kneading box grows with the number of characteristic orbits:
+    # 1 line for the critical kneading + 1 line per characteristic orbit,
+    # plus 2 lines for borders.
+    n_char = length(m.char_pts)
+    kneading_h = 3 + n_char
     rows = split_layout(Layout(Vertical,
-        [Fixed(3), Fixed(3), Fill(), Fixed(1)]), f.area)
+        [Fixed(3), Fixed(kneading_h), Fill(), Fixed(1)]), f.area)
     length(rows) < 4 && return
     header, kneading_row, body, statusrow = rows
 
@@ -369,6 +408,14 @@ function Tachikoma.view(m::PhonebookModel, f::Frame)
     set_string!(buf, inner_k.x + 1, inner_k.y,
                 repr("text/plain", K), tstyle(:text, bold=true);
                 max_x=right(inner_k))
+    for (k, c) in enumerate(m.char_pts)
+        k <= length(SIGILS) || break
+        cy = inner_k.y + k
+        cy > bottom(inner_k) && break
+        line = "$(SIGILS[k]) = $(repr("text/plain", c))"
+        set_string!(buf, inner_k.x + 1, cy, line,
+                    tstyle(:text_dim); max_x=right(inner_k))
+    end
 
     cols = split_layout(Layout(Horizontal, [Percent(45), Fill()]), body)
     length(cols) < 2 && return
@@ -388,7 +435,8 @@ function Tachikoma.view(m::PhonebookModel, f::Frame)
                title_style=tstyle(:title, bold=true))
     inner_t = render(tb, tree_area, buf)
     if m.tree !== nothing && m.layout !== nothing
-        draw_hubbard_tree!(buf, inner_t, m.tree, m.layout, m.show_labels)
+        draw_hubbard_tree!(buf, inner_t, m.tree, m.layout,
+                           m.labels, m.show_labels)
     elseif m.tq.active[] > 0
         spinner = SPINNER_BRAILLE[mod1(m.tick ÷ 3, length(SPINNER_BRAILLE))]
         set_string!(buf, inner_t.x + 1, inner_t.y + 1,
